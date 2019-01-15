@@ -1,0 +1,195 @@
+##  Loading libraries
+
+
+```{r echo=FALSE}
+#install.packages(c("psych", "sandwich",
+ #                 "lmtest", "ggplot2", "car"))
+```
+
+
+```{r echo=FALSE}
+##uncomment above if there's any installaction problem here
+
+library(psych)
+library(sandwich)
+library(lmtest)
+library(ggplot2)
+# library(car)
+```
+
+## Loading dataset (which should be at [this site](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/T1GTLO) )
+
+
+```{r echo=FALSE}
+df_total <- read.csv('../data/data_caio.csv', sep = ',', 
+                     fileEncoding = 'utf-8') 
+
+```
+
+## Selecting variables
+
+
+```{r echo=FALSE}
+df <- df_total[c('UF','TAXA.DE.HOMICIDIO.DE.NEGROS',
+                 'TAXA.DE.HOMICIDIOS.DE.NÃO.NEGROS',
+                 'POPULAÇÃO.EVANGÉLICA',
+                 'POPULAÇÃO.TOTAL.2010',
+                 'TAXA.DE.HOMICIDIOS.POR.ARMA.DE.FOGO',
+                 'VOTAÇÃO.JAIR.BOLSONARO...PSL..PRIMEIRO.TURNO_mi')]
+```
+
+## Substituindo nomes das variáveis
+
+
+```{r echo=FALSE}
+colnames(df) <- c('uf','tx_hom_negro','tx_hom_nnegro',
+                  'pop_evangelica','populacao','tx_hom_arma',
+                  'voto_bolsonaro')
+
+```
+
+## Análise descritiva das variáveis
+
+
+```{r echo=FALSE}
+describe(df[c('voto_bolsonaro','tx_hom_negro',
+              'tx_hom_arma','pop_evangelica')])
+
+
+
+## Análise gráficas das variáveis
+
+
+```{r echo=FALSE}
+theme_set(theme_bw()) 
+```
+
+
+```{r echo=FALSE}
+ggplot(data=df, aes(voto_bolsonaro)) +
+    geom_histogram(bins=10, col="gray") +
+        labs(y="Frequency", 
+               title="Histogram") 
+
+
+```
+
+
+```{r echo=FALSE}
+
+ggplot(data=df, aes(tx_hom_negro)) +
+    geom_histogram(bins=10, col="gray") +
+        labs(y="Frequency",       title="Histogram") 
+
+
+```
+
+
+```{r echo=FALSE}
+ggplot(data=df, aes(tx_hom_arma)) +
+    geom_histogram(bins=10, col="gray") +
+        labs(y="Frequency", 
+               title="Histogram") 
+```
+
+
+```{r echo=FALSE}
+
+ggplot(data=df, aes(pop_evangelica)) +
+    geom_histogram(bins=10, col="gray") +
+        labs(y="Frequency", 
+               title="Histogram") 
+```
+
+## Ajustando variáveis 
+
+
+```{r echo=FALSE}
+df$log_vbolsonaro <- log(df$voto_bolsonaro)
+
+df$log_pevangelica <- log(df$pop_evangelica)
+
+```
+
+## Visualizando relação entre as variáveis
+
+
+```{r echo=FALSE}
+ggplot(df, aes(x=tx_hom_negro, y=log_vbolsonaro )) + 
+  geom_point(size = 3)+ 
+labs(y="Logarithm of of the votes to Bolsonaro", 
+     x="Black population homicides rate") + 
+ggsave("logBolsoBlackpop.png",    dpi = 300)
+```
+
+
+
+
+
+```{r echo=FALSE}
+ggplot(df, aes(x=tx_hom_arma, y=log_vbolsonaro )) + 
+  geom_point(size = 3 ) +
+labs(y="Logarithm of of the votes to Bolsonaro",
+     x="Gun-related homicides rate") +
+ggsave("logBolsoGunrate.png",    dpi = 300)
+```
+
+```{r echo=FALSE}
+ggplot(df, aes(x=log_pevangelica, y=log_vbolsonaro )) + 
+  geom_point(size = 3 ) + 
+labs(y="Logarithm of of the votes to Bolsonaro", 
+               x="Log of the Evangelical Population in the EUA") +
+ggsave("logBolsologEvan.png",dpi = 300)
+```
+
+## Modelo de Regressão Linear
+
+
+```{r echo=FALSE}
+reg <- lm(log_vbolsonaro ~ tx_hom_negro + tx_hom_arma +
+            log_pevangelica, data = df)
+
+```
+
+
+```{r echo=FALSE}
+df$predicted <- predict(reg)   # Save the predicted values
+df$residuals <- residuals(reg) # Save the residual values
+```
+
+
+```{r echo=FALSE}
+## Sumário do modelo
+summary(reg)
+```
+
+#  Checando pressupostos do modelo:
+
+
+```{r echo=FALSE}
+
+ggplot(data=df, aes(residuals)) +
+    geom_histogram(bins = 8, col="gray") +
+        labs(y="Frequency",x = "Residuals",
+             title="Histogram of residuals") + 
+ggsave("residualshist.png", dpi = 300) 
+
+```
+
+```{r echo=FALSE}
+plot(reg,which = 1)
+```
+
+```{r echo=FALSE}
+ggplot(reg, aes(.fitted, .resid))+
+geom_point() + stat_smooth(method="loess")+
+geom_hline(yintercept=0, col="red", linetype="dashed")+
+xlab("Fitted values")+ylab("Residuals") + 
+ggsave("residualsfitted.png", dpi = 300)
+
+
+```
+
+```{r echo=FALSE}
+coeftest(reg,vcov. = vcovHC)
+```
